@@ -1,0 +1,105 @@
+#!/bin/bash
+
+delete_remote=false
+
+help ()
+{
+    echo "usage: $0 [options]"
+    echo ""
+    echo "[options]"
+    echo "  -h          show this help"
+    echo "  -r          also delete remote branch [default: off]"
+    exit 0
+}
+
+while getopts "hr" opt; do
+    case $opt in
+        h)
+            help
+            ;;
+        r)
+            delete_remote=true
+            ;;
+        :)
+            exit 1
+            ;;
+    esac
+done
+
+if $delete_remote ;
+then
+    echo -e "\e[01;34mDelete \e[01;36mlocal & remote\e[01;34m mreged branches...\e[0m"
+else
+    echo -e "\e[01;34mDelete \e[01;36mlocal\e[01;34m merged branches...\e[0m"
+fi
+
+
+################################################################
+#
+# Update
+#
+################################################################
+
+remote_feature_branch_prefix="remotes/origin/feature/"
+local_feature_branch_prefix="feature/"
+remote_bugfix_branch_prefix="remotes/origin/bugfix/"
+local_bugfix_branch_prefix="bugfix/"
+
+declare -a remote_merged_branches
+declare -a local_merged_branches
+
+echo -e "\e[01;34mBase on current local branch:\e[00m \e[00;32m`git branch|grep "*"|sed s/^*//` \e[0m"
+echo -e "\e[01;34mUpdate current branch to date and prune deleted remote branches...\e[0m"
+
+git fetch -p && git pull origin HEAD
+if [ $? != 0 ]; 
+then
+    echo -e "\e[01;31m... Fail to update!\e[0m"
+    exit 1
+fi
+
+################################################################
+#
+# Find merged remote & local branches
+#
+################################################################
+
+echo -e "\e[01;34mFind already merged branches...\e[0m"
+
+i=0
+j=0
+
+for k in $(git branch -a --merged|grep -v "\->"|sed s/^..//);
+do 
+    if `echo ${k} | grep -E "^${remote_feature_branch_prefix}|^${remote_bugfix_branch_prefix}" 1>/dev/null 2>&1`
+    then
+        remote_merged_branches[i++]=`echo ${k} | sed -e "s/^remotes\/origin\///"`
+    fi
+
+    if `echo ${k} | grep -E "^${local_feature_branch_prefix}|^${local_bugfix_branch_prefix}" 1>/dev/null 2>&1`
+    then
+        local_merged_branches[j++]=${k}
+    fi
+done
+
+################################################################
+#
+# Delete remote & local branches
+#
+################################################################
+
+
+if $delete_remote ;
+then
+    echo -e "\e[01;34mDelete remote branches...\e[0m"
+    for branch in ${remote_merged_branches[@]}; 
+    do
+        git push origin :$branch
+    done
+fi
+
+echo -e "\e[01;34mDelete local branches...\e[0m"
+for branch in ${local_merged_branches[@]}; 
+do
+    git branch -d $branch
+done
