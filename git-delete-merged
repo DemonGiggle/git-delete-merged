@@ -48,10 +48,12 @@ local_bugfix_branch_prefix="bugfix/"
 declare -a remote_merged_branches
 declare -a local_merged_branches
 
-echo -e "\e[01;34mBase on current local branch:\e[00m \e[00;32m`git branch|grep "*"|sed s/^*//` \e[0m"
+current_branch=`git branch|grep "*"|sed s/^*//`
+
+echo -e "\e[01;34mBase on current local branch:\e[00m \e[00;32m$current_branch\e[0m"
 echo -e "\e[01;34mUpdate current branch to date and prune deleted remote branches...\e[0m"
 
-git fetch -p && git pull origin HEAD
+git fetch -p && git pull origin $current_branch
 if [ $? != 0 ]; 
 then
     echo -e "\e[01;31m... Fail to update!\e[0m"
