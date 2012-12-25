@@ -1,6 +1,8 @@
 #!/bin/bash
 
+delete_local=false
 delete_remote=false
+dry_run=false
 
 help ()
 {
@@ -8,11 +10,13 @@ help ()
     echo ""
     echo "[options]"
     echo "  -h          show this help"
-    echo "  -r          also delete remote branch [default: off]"
+    echo "  -r          delete remote branch"
+    echo "  -l          delete local branch"
+    echo "  -n          dry-run mode, to see what branches will be removed"
     exit 0
 }
 
-while getopts "hr" opt; do
+while getopts "hrln" opt; do
     case $opt in
         h)
             help
@@ -20,19 +24,42 @@ while getopts "hr" opt; do
         r)
             delete_remote=true
             ;;
+        l)
+            delete_local=true
+            ;;
+        n)
+            dry_run=true
+            ;;
         :)
             exit 1
             ;;
     esac
 done
 
-if $delete_remote ;
+
+if ! $delete_local && ! $delete_remote;
 then
-    echo -e "\e[01;34mDelete \e[01;36mlocal & remote\e[01;34m mreged branches...\e[0m"
-else
-    echo -e "\e[01;34mDelete \e[01;36mlocal\e[01;34m merged branches...\e[0m"
+    echo -e "\e[00;31mWell, no specify -r or -l, quit\e[0m"
+    exit 1
 fi
 
+if $dry_run ;
+then
+    echo -e "\e[00;31mRunning in dry-run mode...\e[0m"
+fi
+
+touch_branches_message=""
+if $delete_local;
+then
+    touch_branches_message="local, "
+fi
+
+if $delete_remote ;
+then
+    touch_branches_message=$touch_branches_message"remote"
+fi
+
+echo -e "\e[01;34mDelete mreged branches: \e[01;36m${touch_branches_message}\e[0m"
 
 ################################################################
 #
@@ -96,12 +123,25 @@ then
     echo -e "\e[01;34mDelete remote branches...\e[0m"
     for branch in ${remote_merged_branches[@]}; 
     do
-        git push origin :$branch
+        if $dry_run ;
+        then
+            echo "Delete: $branch"
+        else
+            git push origin :$branch
+        fi
     done
 fi
 
-echo -e "\e[01;34mDelete local branches...\e[0m"
-for branch in ${local_merged_branches[@]}; 
-do
-    git branch -d $branch
-done
+if $delete_local ;
+then
+    echo -e "\e[01;34mDelete local branches...\e[0m"
+    for branch in ${local_merged_branches[@]}; 
+    do
+        if $dry_run ;
+        then
+            echo "Delete: $branch"
+        else
+            git branch -d $branch
+        fi
+    done
+fi
